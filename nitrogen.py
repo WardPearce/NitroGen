@@ -13,7 +13,7 @@ except ImportError:
 else:
     uvloop.install()
 
-from aiohttp_socks import ProxyConnector
+from aiohttp_socks import ProxyConnector, ProxyConnectionError
 from discord import AsyncWebhookAdapter, Webhook
 from aiohttp import ClientTimeout
 from colorama import Fore
@@ -64,37 +64,42 @@ class NitroGen:
             ))
 
         nitro = "https://discord.gift/" + code
-        resp = await self.sessions[random.randint(0, self.sessions_len)].get(
-            "https://discordapp.com/api/v6/entitlements/gift-codes/" +
-            nitro
-            + "?with_application=false&with_subscription_plan=true",
-            verify_ssl=False
-        )
-
-        if resp.status == 200:
-            self.successful_requests += 1
-            print(Fore.GREEN + nitro)
-
-            async with aiohttp.ClientSession() as session:
-                webhook = Webhook.from_url(
-                    self.webhook,
-                    adapter=AsyncWebhookAdapter(session)
-                )
-                await webhook.send(
-                    f"@everyone \n```{nitro}```", username="Nitro Helper"
-                )
-
-        elif resp.status == 429:
-            timeout = (
-                resp.headers["X-RateLimit-Reset-After"]
-                if "X-RateLimit-Reset-After" in resp.headers else 1.0
+        try:
+            resp = await self.sessions[random.randint(0, self.sessions_len)].get(
+                "https://discordapp.com/api/v6/entitlements/gift-codes/" +
+                nitro
+                + "?with_application=false&with_subscription_plan=true",
+                verify_ssl=False
             )
-            print(Fore.CYAN + "Timeout, retrying in " + str(timeout))
-            await asyncio.sleep(timeout)
+        except ProxyConnectionError:
+            print(Fore.YELLOW + nitro)
+            print(Fore.YELLOW + "Proxy error, retrying")
             await self.generate_code(code)
         else:
-            self.failed_requests += 1
-            print(Fore.RED + nitro)
+            if resp.status == 200:
+                self.successful_requests += 1
+                print(Fore.GREEN + nitro)
+
+                async with aiohttp.ClientSession() as session:
+                    webhook = Webhook.from_url(
+                        self.webhook,
+                        adapter=AsyncWebhookAdapter(session)
+                    )
+                    await webhook.send(
+                        f"@everyone \n```{nitro}```", username="Nitro Helper"
+                    )
+
+            elif resp.status == 429:
+                timeout = (
+                    resp.headers["X-RateLimit-Reset-After"]
+                    if "X-RateLimit-Reset-After" in resp.headers else 1.0
+                )
+                print(Fore.CYAN + "Timeout, retrying in " + str(timeout))
+                await asyncio.sleep(timeout)
+                await self.generate_code(code)
+            else:
+                self.failed_requests += 1
+                print(Fore.RED + nitro)
 
         self.total_requests += 1
 
