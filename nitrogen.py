@@ -72,7 +72,6 @@ class NitroGen:
                 verify_ssl=False
             )
         except ProxyConnectionError:
-            print(Fore.YELLOW + nitro)
             print(Fore.YELLOW + "Proxy error, retrying")
             await self.generate_code(code)
         else:
