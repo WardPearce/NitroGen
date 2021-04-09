@@ -65,7 +65,7 @@ class NitroGen:
 
         nitro = "https://discord.gift/" + code
         resp = await self.sessions[random.randint(0, self.sessions_len)].get(
-            "https://discord.com/api/v6/entitlements/gift-codes/" +
+            "https://discordapp.com/api/v6/entitlements/gift-codes/" +
             nitro
             + "?with_application=false&with_subscription_plan=true",
             verify_ssl=False
