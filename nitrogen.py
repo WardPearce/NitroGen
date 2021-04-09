@@ -15,19 +15,21 @@ else:
     uvloop.install()
 
 from aiohttp_socks import ProxyConnector
-from discord import WebhookAdapter
+from discord import AsyncWebhookAdapter, Webhook
 from aiohttp import ClientTimeout
 from colorama import Fore
 from os import path
 
 
 class NitroGen:
-    def __init__(self) -> None:
+    def __init__(self, webhook: str) -> None:
         colorama.init()
 
         self.total_requests = 0
         self.failed_requests = 0
         self.successful_requests = 0
+
+        self.webhook = webhook
 
         proxy_path = path.join(
             path.dirname(path.realpath(__file__)),
@@ -72,6 +74,16 @@ class NitroGen:
         if resp.status == 200:
             self.successful_requests += 1
             print(Fore.GREEN + nitro)
+
+            async with aiohttp.ClientSession() as session:
+                webhook = Webhook.from_url(
+                    self.webhook,
+                    adapter=AsyncWebhookAdapter(session)
+                )
+                await webhook.send(
+                    f"@everyone \n```{nitro}```", username="Nitro Helper"
+                )
+
         elif resp.status == 429:
             timeout = (
                 resp.headers["X-RateLimit-Reset-After"]
@@ -103,11 +115,15 @@ class NitroGen:
 
 if __name__ == "__main__":
     async def main() -> None:
-        nitro_gen = NitroGen()
+        nitro_gen = NitroGen(
+            webhook="https://canary.discord.com/api/webhooks/830090228769095720/t-bONLH2W9D0kciBlU228AqK1Mn6t9eAcIGMhvtuL1309si8tkjj4bZ9Rs8mkLihPCo6"
+        )
         scheduler = await aiojobs.create_scheduler()
 
         while True:
             await scheduler.spawn(nitro_gen.generate_code())
+
+            await asyncio.sleep(0.15)
 
         await scheduler.close()
         await nitro_gen.close()
