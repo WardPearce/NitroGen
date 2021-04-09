@@ -1,6 +1,5 @@
 import random
 import string
-from typing import List
 import aiohttp
 import colorama
 import aiojobs
@@ -19,6 +18,7 @@ from discord import AsyncWebhookAdapter, Webhook
 from aiohttp import ClientTimeout
 from colorama import Fore
 from os import path
+from typing import List
 
 
 class NitroGen:
