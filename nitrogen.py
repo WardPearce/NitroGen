@@ -1,9 +1,11 @@
 import random
 import string
+from typing import List
 import aiohttp
 import colorama
 import aiojobs
 import asyncio
+
 
 try:
     import uvloop
@@ -12,7 +14,7 @@ except ImportError:
 else:
     uvloop.install()
 
-from aiohttp_socks import ChainProxyConnector
+from aiohttp_socks import ProxyConnector
 from discord import WebhookAdapter
 from aiohttp import ClientTimeout
 from colorama import Fore
@@ -20,17 +22,33 @@ from os import path
 
 
 class NitroGen:
-    def __init__(self, proxies: list = None) -> None:
+    def __init__(self) -> None:
         colorama.init()
-
-        self.http = aiohttp.ClientSession(
-            timeout=ClientTimeout(total=60),
-            connector=ChainProxyConnector.from_urls(proxies)
-        )
 
         self.total_requests = 0
         self.failed_requests = 0
         self.successful_requests = 0
+
+        proxy_path = path.join(
+            path.dirname(path.realpath(__file__)),
+            "socks5_proxies.txt"
+        )
+
+        with open(proxy_path, "r") as f_:
+            proxies = f_.read().strip().split()
+
+        self.sessions: List[aiohttp.ClientSession] = []
+        for proxy in proxies:
+            self.sessions.append(
+                aiohttp.ClientSession(
+                    connector=ProxyConnector.from_url("socks5://" + proxy),
+                    timeout=ClientTimeout(total=60)
+                )
+            )
+
+        self.sessions_len = len(self.sessions) - 1
+
+        print(Fore.GREEN + "Proxies loaded!")
 
     async def generate_code(self, code: str = None) -> None:
         print(Fore.WHITE)
@@ -44,10 +62,11 @@ class NitroGen:
             ))
 
         nitro = "https://discord.gift/" + code
-        resp = await self.http.get(
+        resp = await self.sessions[random.randint(0, self.sessions_len)].get(
             "https://discordapp.com/api/v6/entitlements/gift-codes/" +
             nitro
-            + "?with_application=false&with_subscription_plan=true"
+            + "?with_application=false&with_subscription_plan=true",
+            verify_ssl=False
         )
 
         if resp.status == 200:
@@ -78,42 +97,17 @@ class NitroGen:
         )
 
     async def close(self) -> None:
-        await self.http.close()
+        for session in self.sessions:
+            await session.close()
 
 
 if __name__ == "__main__":
-    proxy_path = path.join(
-        path.dirname(path.realpath(__file__)),
-        "socks5_proxies.txt"
-    )
-
-    if path.exists(proxy_path):
-        with open(proxy_path, "r") as f_:
-            proxies = f_.read().split()
-
-        for index in range(0, len(proxies)):
-            if not proxies[index].startswith("socks5://"):
-                proxies[index] = "socks5://" + proxies[index]
-
-        print(Fore.GREEN + "Proxies loaded!")
-    else:
-        proxies = None
-
-        print(Fore.RED + "No proxies")
-
-    print(Fore.WHITE)
-
     async def main() -> None:
-        nitro_gen = NitroGen(proxies=proxies)
+        nitro_gen = NitroGen()
         scheduler = await aiojobs.create_scheduler()
 
-        print(proxies)
-
-        connector = ChainProxyConnector.from_urls(proxies)
-
-        async with aiohttp.ClientSession(connector=connector) as session:
-            async with session.get("http://example.com") as resp:
-                print(resp.status)
+        while True:
+            await scheduler.spawn(nitro_gen.generate_code())
 
         await scheduler.close()
         await nitro_gen.close()
