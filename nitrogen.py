@@ -44,7 +44,7 @@ class NitroGen:
             self.sessions.append(
                 aiohttp.ClientSession(
                     connector=ProxyConnector.from_url("socks5://" + proxy),
-                    timeout=ClientTimeout(total=60)
+                    timeout=ClientTimeout(total=120)
                 )
             )
 
@@ -65,7 +65,7 @@ class NitroGen:
 
         nitro = "https://discord.gift/" + code
         resp = await self.sessions[random.randint(0, self.sessions_len)].get(
-            "https://discordapp.com/api/v6/entitlements/gift-codes/" +
+            "https://discord.com/api/v6/entitlements/gift-codes/" +
             nitro
             + "?with_application=false&with_subscription_plan=true",
             verify_ssl=False
@@ -123,7 +123,7 @@ if __name__ == "__main__":
         while True:
             await scheduler.spawn(nitro_gen.generate_code())
 
-            await asyncio.sleep(0.15)
+            await asyncio.sleep(0.1)
 
         await scheduler.close()
         await nitro_gen.close()
