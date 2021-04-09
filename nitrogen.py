@@ -85,7 +85,7 @@ class NitroGen:
                         adapter=AsyncWebhookAdapter(session)
                     )
                     await webhook.send(
-                        f"@everyone \n```{nitro}```", username="Nitro Helper"
+                        "@everyone \n" + nitro, username="NitroGen"
                     )
 
             elif resp.status == 429:
