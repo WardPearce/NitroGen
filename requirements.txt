@@ -1,0 +1,5 @@
+discord.py>=1.5.1
+aiohttp>=3.7.2
+colorama
+aiojobs
+aiohttp_socks
