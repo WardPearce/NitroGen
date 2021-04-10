@@ -35,6 +35,8 @@ class NitroGen:
 
         self.major_errors = 0
 
+        self.claimed_codes = 0
+
         proxy_path = path.join(
             path.dirname(path.realpath(__file__)),
             "socks5_proxies.txt"
@@ -121,6 +123,8 @@ class NitroGen:
 
                         await self.discord.send(nitro)
                     else:
+                        self.claimed_codes += 1
+
                         print(
                             Fore.CYAN,
                             nitro,
@@ -150,6 +154,8 @@ class NitroGen:
             "Errors: ", Fore.YELLOW, self.major_errors, " | ",
             Fore.WHITE,
             "Failed: ", Fore.RED, self.failed_requests, " | ",
+            Fore.WHITE,
+            "Claimed: ", Fore.MAGENTA, self.claimed_codes, " | ",
             Fore.WHITE,
             "Successful: ", Fore.GREEN, self.successful_requests,
             sep=""
