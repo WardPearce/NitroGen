@@ -147,18 +147,8 @@ class NitroGen:
         self.total_requests += 1
 
         print(
-            "\n",
-            Fore.WHITE,
-            "Total: ", Fore.WHITE, self.total_requests, " | ",
-            Fore.WHITE,
-            "Errors: ", Fore.YELLOW, self.major_errors, " | ",
-            Fore.WHITE,
-            "Failed: ", Fore.RED, self.failed_requests, " | ",
-            Fore.WHITE,
-            "Claimed: ", Fore.MAGENTA, self.claimed_codes, " | ",
-            Fore.WHITE,
-            "Successful: ", Fore.GREEN, self.successful_requests,
-            sep=""
+            f"\n{Fore.WHITE} Total: {Fore.WHITE}{self.total_requests} | Errors: {Fore.YELLOW} {self.major_errors}{Fore.WHITE}" +
+            f" | Failed: {Fore.RED}{self.failed_requests}{Fore.WHITE} | Claimed: {Fore.MAGENTA}{self.claimed_codes}{Fore.WHITE} | Successful: {Fore.GREEN}{self.successful_requests}"
         )
 
     async def close(self) -> None:
