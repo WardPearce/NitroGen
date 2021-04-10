@@ -84,7 +84,6 @@ class NitroGen:
             print(Fore.YELLOW + "Proxy error, retrying")
             await self.generate_code(code)
         else:
-            print(resp.status)
             if resp.status == 200:
                 self.successful_requests += 1
                 try:
