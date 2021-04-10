@@ -4,18 +4,22 @@ import aiohttp
 import colorama
 import aiojobs
 import asyncio
+import json
 
 
 try:
     import uvloop
 except ImportError:
-    pass
+    print("uvloop not installed")
 else:
     uvloop.install()
 
+    print("uvloop installed!")
+
 from aiohttp_socks import ProxyConnector, ProxyConnectionError
-from discord import AsyncWebhookAdapter, Webhook
+from discord import AsyncWebhookAdapter, Webhook, Embed
 from aiohttp import ClientTimeout
+from json import JSONDecodeError
 from colorama import Fore
 from os import path
 from typing import List
@@ -29,7 +33,7 @@ class NitroGen:
         self.failed_requests = 0
         self.successful_requests = 0
 
-        self.webhook = webhook
+        self.major_errors = 0
 
         proxy_path = path.join(
             path.dirname(path.realpath(__file__)),
@@ -39,16 +43,19 @@ class NitroGen:
         with open(proxy_path, "r") as f_:
             proxies = f_.read().strip().split()
 
-        self.sessions: List[aiohttp.ClientSession] = []
-        for proxy in proxies:
-            self.sessions.append(
-                aiohttp.ClientSession(
-                    connector=ProxyConnector.from_url("socks5://" + proxy),
-                    timeout=ClientTimeout(total=120)
-                )
-            )
-
+        self.sessions: List[aiohttp.ClientSession] = [
+            aiohttp.ClientSession(
+                connector=ProxyConnector.from_url("socks5://" + proxy),
+                timeout=ClientTimeout(total=120)
+            ) for proxy in proxies
+        ]
         self.sessions_len = len(self.sessions) - 1
+
+        self.discord_session = aiohttp.ClientSession()
+        self.discord = Webhook.from_url(
+            webhook,
+            adapter=AsyncWebhookAdapter(self.discord_session)
+        )
 
         print(Fore.GREEN + "Proxies loaded!")
 
@@ -65,28 +72,62 @@ class NitroGen:
 
         nitro = "https://discord.gift/" + code
         try:
-            resp = await self.sessions[random.randint(0, self.sessions_len)].get(
-                "https://discordapp.com/api/v6/entitlements/gift-codes/" +
-                nitro
+            resp = await self.sessions[
+                random.randint(0, self.sessions_len)
+            ].get(
+                "https://discord.com/api/v6/entitlements/gift-codes/" +
+                code
                 + "?with_application=false&with_subscription_plan=true",
-                verify_ssl=False
+                ssl=False
             )
         except ProxyConnectionError:
             print(Fore.YELLOW + "Proxy error, retrying")
             await self.generate_code(code)
         else:
+            print(resp.status)
             if resp.status == 200:
                 self.successful_requests += 1
-                print(Fore.GREEN + nitro)
+                try:
+                    json_data = await resp.json()
+                except JSONDecodeError:
+                    print(Fore.RED + "Json Decoding error")
+                    self.major_errors += 1
+                else:
+                    if json_data["uses"] != json_data["max_uses"]:
+                        print(Fore.GREEN + nitro)
 
-                async with aiohttp.ClientSession() as session:
-                    webhook = Webhook.from_url(
-                        self.webhook,
-                        adapter=AsyncWebhookAdapter(session)
-                    )
-                    await webhook.send(
-                        "@everyone \n" + nitro, username="NitroGen"
-                    )
+                        json_pretty = json.dumps(
+                            json_data,
+                            indent=2,
+                            sort_keys=True
+                        )
+
+                        embed = Embed(
+                            title="UwU we found a gift for you",
+                            url=nitro,
+                            description=f"```json\n{json_pretty}\n```"
+                        )
+                        embed.set_thumbnail(
+                            url="https://cdn.discordapp.com/avatars/{}/{}.{}?size=1024".format(
+                                json_data["user"]["id"],
+                                json_data["user"]["avatar"],
+                                "gif" if json_data["user"]["avatar"].startswith("a_") else "jpg"
+                            )
+                        )
+
+                        await self.discord.send(
+                            content="@everyone",
+                            embed=embed
+                        )
+
+                        await self.discord.send(nitro)
+                    else:
+                        print(
+                            Fore.CYAN,
+                            nitro,
+                            "Valid code found, but redeemed",
+                            sep="\n"
+                        )
 
             elif resp.status == 429:
                 timeout = (
@@ -106,6 +147,9 @@ class NitroGen:
             "\n",
             Fore.WHITE,
             "Total: ", Fore.WHITE, self.total_requests, " | ",
+            Fore.WHITE,
+            "Errors: ", Fore.YELLOW, self.major_errors, " | ",
+            Fore.WHITE,
             "Failed: ", Fore.RED, self.failed_requests, " | ",
             Fore.WHITE,
             "Successful: ", Fore.GREEN, self.successful_requests,
@@ -115,6 +159,8 @@ class NitroGen:
     async def close(self) -> None:
         for session in self.sessions:
             await session.close()
+
+        await self.discord_session.close()
 
 
 if __name__ == "__main__":
@@ -127,7 +173,7 @@ if __name__ == "__main__":
         while True:
             await scheduler.spawn(nitro_gen.generate_code())
 
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.15)
 
         await scheduler.close()
         await nitro_gen.close()
