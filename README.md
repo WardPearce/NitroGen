@@ -1,2 +1,4 @@
 # NitroGen
-Discord Nitro code generator and checker
+Really fast NitroGen code generator / checker
+
+[Edit config here](https://github.com/WardPearce/NitroGen/blob/main/nitrogen.py#L162)
